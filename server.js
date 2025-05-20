@@ -10,17 +10,35 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// MongoDB Connection
-mongoose
-  .connect(
-    process.env.MONGODB_URI || "mongodb://localhost:27017/iot-monitoring",
-    {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    }
-  )
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log("MongoDB Connection Error:", err));
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
+// Root path handler
+app.get("/", (req, res) => {
+  res.status(200).json({ message: "IoT Monitoring System API" });
+});
+
+// MongoDB Connection with retry logic
+const connectWithRetry = async () => {
+  try {
+    await mongoose.connect(
+      process.env.MONGODB_URI || "mongodb://localhost:27017/iot-monitoring",
+      {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      }
+    );
+    console.log("MongoDB Connected");
+  } catch (err) {
+    console.log("MongoDB Connection Error:", err);
+    console.log("Retrying in 5 seconds...");
+    setTimeout(connectWithRetry, 5000);
+  }
+};
+
+connectWithRetry();
 
 // Device Schema
 const deviceSchema = new mongoose.Schema({
